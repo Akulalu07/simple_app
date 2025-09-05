@@ -22,20 +22,22 @@ services:
       - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
       - "traefik.http.routers.backend.entrypoints=web"
       - "traefik.http.services.backend.loadbalancer.server.port=8080"
+      - "traefik.http.routers.backend.priority=10"
     restart: unless-stopped
     
 
 
-  # frontend:
-  #   build:
-  #     context: .
-  #     dockerfile: ./frontend/Dockerfile
-  #   container_name: react-frontend
-  #   depends_on:
-    #   - backend
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
-    #   - "traefik.http.routers.frontend.entrypoints=web"
-    #   - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-    # restart: unless-stopped
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: react-frontend
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.frontend.priority=1"
+    restart: unless-stopped
