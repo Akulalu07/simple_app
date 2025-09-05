@@ -1,26 +1,19 @@
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/gofiber/fiber/v2"
-    "github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2"
 )
 
-func main() {
-    app := fiber.New()
-
-    // Enable CORS for local development and cross-origin requests
-    app.Use(cors.New())
-
-    app.Get("/api/hello", func(c *fiber.Ctx) error {
-        return c.JSON(fiber.Map{
-            "message": "Hello from Fiber API",
-        })
-    })
-
-    if err := app.Listen(":8080"); err != nil {
-        log.Fatal(err)
-    }
+func hello(c *fiber.Ctx) error {
+	return c.SendString("Hello, World!")
 }
 
+func main() {
+	app := fiber.New()
+
+	app.Get("/", hello)
+
+	log.Fatal(app.Listen("0.0.0.0:8080"))
+}

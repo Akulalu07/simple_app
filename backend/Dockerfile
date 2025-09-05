@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 
 # Initialize module if not present and fetch Fiber
 RUN [ -f go.mod ] || go mod init backend
-RUN go get github.com/gofiber/fiber/v2@v2.52.1
+RUN go get 
 
 # Build the application (static, linux binary)
 RUN CGO_ENABLED=0 GOOS=linux go build -o server .
