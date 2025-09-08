@@ -3,39 +3,19 @@ package main
 import (
 	"log"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v3"
 )
-
-type HelloResponse struct {
-	Message string `json:"message"`
-	Status  string `json:"status"`
-}
-
-func hello(c *fiber.Ctx) error {
-	return c.JSON(HelloResponse{
-		Message: "Hello world",
-		Status:  "success",
-	})
-}
-
-func health(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{
-		"status": "healthy",
-		"service": "simple-app-backend",
-	})
-}
 
 func main() {
 	app := fiber.New()
 
-	// Middleware
-	app.Use(cors.New())
+	app.Get("/api/hello", func(c fiber.Ctx) error {
+		return c.SendString("Hello!")
+	})
 
-	// Routes
-	app.Get("/", hello)
-	app.Get("/api/hello", hello)
-	app.Get("/api/health", health)
+	app.Get("/api/", func(c fiber.Ctx) error {
+		return c.SendString("LOL!")
+	})
 
 	log.Fatal(app.Listen("0.0.0.0:8080"))
 }

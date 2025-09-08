@@ -1,16 +1,22 @@
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:v2.10  
     container_name: traefik
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--metrics.prometheus=true"
+      - "--api.dashboard=true"
+      - "--api.insecure=true" 
     ports:
       - "80:80"
+      - "8080:8080" 
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     restart: unless-stopped
+    networks:
+      - traefik-net
 
   backend:
     build:
@@ -22,22 +28,24 @@ services:
       - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
       - "traefik.http.routers.backend.entrypoints=web"
       - "traefik.http.services.backend.loadbalancer.server.port=8080"
-      - "traefik.http.routers.backend.priority=10"
     restart: unless-stopped
-    
-
+    networks:
+      - traefik-net
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: react-frontend
-    depends_on:
-      - backend
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-      - "traefik.http.routers.frontend.priority=1"
     restart: unless-stopped
+    networks:
+      - traefik-net
+
+networks:
+  traefik-net:
+    driver: bridge
