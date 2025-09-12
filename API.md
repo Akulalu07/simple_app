@@ -1,20 +1,57 @@
-# Simple App API Documentation
+# Simple App API
 
 ## Overview
 
-This is a simple REST API built with Go Fiber framework. The API provides basic endpoints for health checking and greeting functionality.
+Simple REST API built with Go and Fiber. Provides health checks, a greeting, and CRUD for messages. Prometheus metrics are exposed separately.
 
-**Base URL:** `http://localhost:8080` (development) or `http://localhost/api` (with Traefik)
+- Base URL (default): `http://localhost:8080`
+- Base path behind a proxy (e.g., Traefik): `http://localhost/api`
+- Metrics (default): `http://localhost:9090/metrics`
+
+Configuration is controlled via env vars: `SERVER_PORT` (default `8080`), `METRICS_ADDR` (default `:9090`).
+
+## Conventions
+
+- Content-Type: `application/json`
+- Errors: `{"error": string}` with appropriate HTTP status
+- Timestamps: ISO-8601 strings in UTC
+
+## Schemas
+
+Message
+
+```json
+{
+  "id": 1,
+  "content": "string",
+  "createdAt": "2025-01-01T12:34:56Z"
+}
+```
+
+CreateMessageRequest
+
+```json
+{
+  "content": "string (1..280 chars)"
+}
+```
+
+UpdateMessageRequest
+
+```json
+{
+  "content": "string"
+}
+```
 
 ## Endpoints
 
-### 1. Health Check
+### Health
 
-Check if the API is running and healthy.
+GET `/api/health`
 
-**Endpoint:** `GET /api/health`
+Response 200
 
-**Response:**
 ```json
 {
   "status": "healthy",
@@ -22,171 +59,138 @@ Check if the API is running and healthy.
 }
 ```
 
-**Example Request:**
-```bash
-curl -X GET http://localhost:8080/api/health
-```
-
-**Example Response:**
-```json
-{
-  "status": "healthy",
-  "service": "simple-app-backend"
-}
-```
-
-### 2. Hello Message
-
-Get a greeting message from the API.
-
-**Endpoint:** `GET /api/hello`
-
-**Response:**
-```json
-{
-  "message": "Hello from Fiber API!",
-  "status": "success"
-}
-```
-
-**Example Request:**
-```bash
-curl -X GET http://localhost:8080/api/hello
-```
-
-**Example Response:**
-```json
-{
-  "message": "Hello from Fiber API!",
-  "status": "success"
-}
-```
-
-### 3. Root Endpoint
-
-Same as `/api/hello` but accessible at the root path.
-
-**Endpoint:** `GET /`
-
-**Response:**
-```json
-{
-  "message": "Hello from Fiber API!",
-  "status": "success"
-}
-```
-
-## Making Requests
-
-### Using cURL
+Example
 
 ```bash
-# Health check
-curl -X GET http://localhost:8080/api/health
-
-# Get hello message
-curl -X GET http://localhost:8080/api/hello
-
-# Root endpoint
-curl -X GET http://localhost:8080/
+curl http://localhost:8080/api/health
 ```
 
-### Using JavaScript/Fetch
+### Hello
 
-```javascript
-// Health check
-const healthResponse = await fetch('http://localhost:8080/api/health');
-const healthData = await healthResponse.json();
-console.log(healthData);
+GET `/api/hello`
 
-// Hello message
-const helloResponse = await fetch('http://localhost:8080/api/hello');
-const helloData = await helloResponse.json();
-console.log(helloData);
+Response 200
+
+```json
+{
+  "message": "Hello!"
+}
 ```
 
-### Using Python (requests)
+Example
 
-```python
-import requests
-
-# Health check
-response = requests.get('http://localhost:8080/api/health')
-print(response.json())
-
-# Hello message
-response = requests.get('http://localhost:8080/api/hello')
-print(response.json())
+```bash
+curl http://localhost:8080/api/hello
 ```
 
-### Using Postman
+### Messages
 
-1. Create a new GET request
-2. Set URL to `http://localhost:8080/api/health` or `http://localhost:8080/api/hello`
-3. Send the request
+List messages
 
-## Error Handling
+GET `/api/messages?limit=100`
 
-The API uses standard HTTP status codes:
+- Query params: `limit` optional, integer > 0, default 100
+- Response 200: `Message[]`
+- Response 500: `{ "error": "Failed to fetch messages" }`
 
-- `200 OK` - Request successful
-- `404 Not Found` - Endpoint not found
-- `500 Internal Server Error` - Server error
+```bash
+curl "http://localhost:8080/api/messages?limit=50"
+```
+
+Create message
+
+POST `/api/messages`
+
+- Body: `CreateMessageRequest`
+- Response 201: `Message` (subset with `id`, `content`, `createdAt`)
+- Response 400: `{ "error": string }` (validation or service error)
+
+```bash
+curl -X POST http://localhost:8080/api/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"content":"Hello world"}'
+```
+
+Get message by id
+
+GET `/api/messages/:id`
+
+- Path params: `id` uint
+- Response 200: `Message`
+- Response 400: `{ "error": "Invalid message ID" }`
+- Response 404: `{ "error": "Message not found" }`
+
+```bash
+curl http://localhost:8080/api/messages/1
+```
+
+Update message
+
+PUT `/api/messages/:id`
+
+- Body: `UpdateMessageRequest`
+- Response 200: `Message`
+- Response 400: `{ "error": string }` (invalid id or validation/service error)
+
+```bash
+curl -X PUT http://localhost:8080/api/messages/1 \
+  -H 'Content-Type: application/json' \
+  -d '{"content":"Updated"}'
+```
+
+Delete message
+
+DELETE `/api/messages/:id`
+
+- Response 204: No body
+- Response 400: `{ "error": "Invalid message ID" }`
+- Response 500: `{ "error": "Failed to delete message" }`
+
+```bash
+curl -X DELETE http://localhost:8080/api/messages/1 -i
+```
+
+## Metrics
+
+Prometheus metrics are exposed on a separate HTTP server.
+
+- GET `/metrics` on `METRICS_ADDR` (default `:9090`)
+
+```bash
+curl http://localhost:9090/metrics | head -20
+```
+
+Notable metrics:
+
+- `app_messages_created_total` counter
+- `app_http_requests_total` counter
+- `app_http_request_duration_seconds` histogram
+
+## Error model
+
+Global error handler returns
+
+```json
+{ "error": "message" }
+```
+
+with status codes such as 400, 404, or 500 depending on the failure.
 
 ## CORS
 
-The API includes CORS middleware, so it can be called from web browsers from different origins.
+CORS is enabled; the API is callable from browsers across origins.
 
-## Running the API
-
-### Development Mode
+## Running locally
 
 ```bash
 cd backend
 go run main.go
 ```
 
-### Using Docker
+With Docker Compose
 
 ```bash
-# Build and run with Docker Compose
 docker-compose up --build
-
-# Or run just the backend
-docker-compose up backend
 ```
 
-### Using Docker Compose with Traefik
-
-When running with `docker-compose up`, the API is accessible at:
-- `http://localhost/api/health`
-- `http://localhost/api/hello`
-
-## Response Format
-
-All successful responses return JSON with the following structure:
-
-```json
-{
-  "message": "string",  // Optional: Human-readable message
-  "status": "string"    // Status indicator (success, healthy, etc.)
-}
-```
-
-## Frontend Integration
-
-The frontend (React + TypeScript) automatically calls `/api/hello` on load and displays the message. The API response structure matches the TypeScript interface:
-
-```typescript
-interface ApiResponse {
-  message: string
-}
-```
-
-## Development Notes
-
-- The API runs on port 8080
-- Uses Go Fiber v2 framework
-- Includes CORS middleware for cross-origin requests
-- All endpoints return JSON responses
-- No authentication required (simple demo API)
+When running behind Traefik via Compose, prefix routes with `/api`.
